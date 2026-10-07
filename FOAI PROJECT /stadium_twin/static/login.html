@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowGuard — Login</title>
+  <meta name="description" content="Sign in to FlowGuard — Multi-Agent Crowd Management Digital Twin">
+  <link rel="stylesheet" href="/static/css/design-system.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--bg);
+      padding: 24px;
+    }
+
+    .auth-shell {
+      display: flex;
+      width: 100%;
+      max-width: 900px;
+      min-height: 520px;
+      border-radius: 25px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(22, 33, 28, 0.08);
+      background: var(--surface);
+    }
+
+    .auth-brand {
+      flex: 1.1;
+      background: var(--nav);
+      padding: 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 48px;
+      text-decoration: none;
+    }
+    .brand-logo-icon {
+      width: 48px; height: 48px;
+      background: #263842;
+      border-radius: 13px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+    }
+    .brand-logo-text {
+      font-size: 24px;
+      font-weight: 900;
+      color: #fff;
+    }
+    .brand-logo-text span { color: var(--gold); }
+
+    .brand-headline {
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      margin-bottom: 16px;
+    }
+    .brand-sub {
+      font-size: 15px;
+      color: #bdc6ca;
+      line-height: 1.6;
+      max-width: 320px;
+    }
+
+    .brand-pills {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 40px;
+    }
+    .brand-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #d9dfe2;
+    }
+    .brand-pill-icon {
+      width: 36px; height: 36px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .auth-form-panel {
+      flex: 0.9;
+      background: var(--surface);
+      padding: 48px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .auth-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--ink);
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+    .auth-subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 32px;
+    }
+
+    .auth-form { display: flex; flex-direction: column; gap: 16px; }
+
+    .form-group { margin-bottom: 4px; }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.1px;
+      color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 11px;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 15px;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--surface);
+    }
+
+    .btn-submit {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 11px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: opacity 0.2s;
+    }
+    .btn-submit:hover { opacity: 0.9; }
+
+    .auth-link-row {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 24px;
+    }
+    .auth-link-row a {
+      color: var(--ink);
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .auth-link-row a:hover { color: var(--accent); }
+
+    .error-msg {
+      background: rgba(223,105,85,0.1);
+      border: 1px solid rgba(223,105,85,0.2);
+      color: var(--coral);
+      border-radius: 9px;
+      padding: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    @media (max-width: 800px) {
+      .auth-brand { display: none; }
+      .auth-shell { max-width: 420px; border-radius: 19px; }
+      .auth-form-panel { padding: 40px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="auth-shell">
+  <!-- Brand panel -->
+  <div class="auth-brand">
+    <div class="brand-logo">
+      <div class="brand-logo-icon"><i data-lucide="waves"></i></div>
+      <div class="brand-logo-text">Flow<span>Guard</span></div>
+    </div>
+    <div class="brand-headline">Real-Time Crowd<br>Management AI</div>
+    <div class="brand-sub">
+      Digital twin simulations powered by BDI agents, A* pathfinding,
+      and live OpenStreetMap data.
+    </div>
+    <div class="brand-pills">
+      <div class="brand-pill">
+        <div class="brand-pill-icon"><i data-lucide="bot" size="18"></i></div>
+        <span>SafetyAgent + CrowdAgent + RouteAgent</span>
+      </div>
+      <div class="brand-pill">
+        <div class="brand-pill-icon"><i data-lucide="zap" size="18"></i></div>
+        <span>A* with Haversine heuristic</span>
+      </div>
+      <div class="brand-pill">
+        <div class="brand-pill-icon"><i data-lucide="map" size="18"></i></div>
+        <span>Real OSM data via Overpass API</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form panel -->
+  <div class="auth-form-panel">
+    <div class="auth-title">Welcome back</div>
+    <div class="auth-subtitle">Sign in to your FlowGuard account</div>
+
+    <div id="errorMsg" class="error-msg"></div>
+
+    <form id="loginForm" class="auth-form">
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input class="form-input" type="text" id="username" name="username" placeholder="Enter your username" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-input" type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" id="loginBtn" class="btn-submit">Sign In</button>
+    </form>
+
+    <div class="auth-link-row">
+      Don't have an account? <a href="/static/register.html">Create one</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  lucide.createIcons();
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    const errEl = document.getElementById('errorMsg');
+    btn.textContent = 'Signing in…';
+    btn.disabled = true;
+    errEl.style.display = 'none';
+
+    const formData = new URLSearchParams(new FormData(e.target));
+    const response = await fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData
+    });
+
+    if (response.ok) {
+      window.location.href = '/static/dashboard.html';
+    } else {
+      const data = await response.json();
+      errEl.textContent = data.detail || 'Login failed. Please try again.';
+      errEl.style.display = 'block';
+      btn.textContent = 'Sign In';
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

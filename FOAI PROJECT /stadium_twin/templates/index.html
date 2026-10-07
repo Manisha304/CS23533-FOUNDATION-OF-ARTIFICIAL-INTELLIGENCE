@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chepauk StadiumTwin — MA Chidambaram Stadium Digital Twin</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <!-- Top Navigation Header -->
+    <header class="navbar">
+        <div class="logo-group">
+            <div class="logo-icon">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <div>
+                <h1 class="logo-title">Chepauk StadiumTwin <span class="badge-viva">MA Chidambaram Stadium (Chennai)</span></h1>
+                <p class="logo-subtitle">Multi-Agent Crowd Management & Classical AI Dijkstra Pathfinding System</p>
+            </div>
+        </div>
+
+        <div class="system-status-container">
+            <div class="status-indicator-badge status-monitoring" id="system-status-badge">
+                <span class="status-dot"></span>
+                <span id="status-text">MONITORING NORMAL</span>
+            </div>
+            <div class="live-clock" id="live-clock">00:00:00</div>
+        </div>
+    </header>
+
+    <!-- Main Grid Dashboard Layout -->
+    <main class="dashboard-grid">
+        
+        <!-- Left Sidebar: Scenario Controls & Emergency Trigger -->
+        <aside class="sidebar-panel glass-panel">
+            <div class="panel-header">
+                <h3><i class="fa-solid fa-sliders"></i> Scenario Control Center</h3>
+            </div>
+            
+            <div class="scenario-buttons-group">
+                <button class="btn-scenario active" data-scenario="reset">
+                    <i class="fa-solid fa-arrows-rotate"></i> Reset / Baseline Normal Flow
+                </button>
+                <button class="btn-scenario" data-scenario="gate_blocked">
+                    <i class="fa-solid fa-ban text-warning"></i> Scenario 1: Gate 1 Wallajah Closed
+                </button>
+                <button class="btn-scenario" data-scenario="emergency_at_stand">
+                    <i class="fa-solid fa-fire-extinguisher text-danger"></i> Scenario 2: Anna Pavilion Fire
+                </button>
+                <button class="btn-scenario" data-scenario="high_inflow">
+                    <i class="fa-solid fa-users text-info"></i> Scenario 3: High Inflow (30k Fans)
+                </button>
+                <button class="btn-scenario" data-scenario="combo_crisis">
+                    <i class="fa-solid fa-bolt text-danger"></i> Scenario 4: Combo Crisis
+                </button>
+            </div>
+
+            <hr class="divider">
+
+            <div class="panel-header">
+                <h3><i class="fa-solid fa-triangle-exclamation"></i> Dynamic Event Injector</h3>
+            </div>
+
+            <div class="event-injector-form">
+                <div class="form-group">
+                    <label for="select-node">Select Chepauk Zone</label>
+                    <select id="select-node" class="form-control">
+                        <option value="Gate_1_Wallajah">Gate 1 (Wallajah Rd Entrance)</option>
+                        <option value="Gate_2_Bells">Gate 2 (Bells Rd Entrance)</option>
+                        <option value="Gate_3_Pattabiram">Gate 3 (Pattabiram Rd Entrance)</option>
+                        <option value="Gate_4_Vattaram">Gate 4 (Vattaram / Victoria Hostel)</option>
+                        <option value="Anna_Pavilion">Anna Pavilion (North Stand)</option>
+                        <option value="Pavilion_Stand">Pavilion Stand (South Stand)</option>
+                        <option value="P4_Upper_Stand">P4 Upper Stand (East Stand)</option>
+                        <option value="CD_Stand">C & D Stand (West Stand)</option>
+                        <option value="MA_Chidambaram_Stand">MA Chidambaram Grandstand</option>
+                    </select>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-warning" id="btn-toggle-block">
+                        <i class="fa-solid fa-lock"></i> Toggle Block
+                    </button>
+                    <button class="btn btn-danger" id="btn-trigger-emergency">
+                        <i class="fa-solid fa-fire"></i> Fire Hazard (Sev 5)
+                    </button>
+                </div>
+                
+                <button class="btn btn-outline" id="btn-clear-emergencies">
+                    <i class="fa-solid fa-shield-halved"></i> Clear All Hazards
+                </button>
+            </div>
+
+            <hr class="divider">
+
+            <!-- Gate Throughput Breakdown -->
+            <div class="panel-header">
+                <h3><i class="fa-solid fa-door-open"></i> Gate Load Breakdown</h3>
+            </div>
+
+            <div class="gate-metrics-list" id="gate-metrics-list">
+                <!-- Populated via JS -->
+            </div>
+        </aside>
+
+        <!-- Center: Interactive Stadium 2D Canvas Map -->
+        <section class="main-viewport glass-panel">
+            <div class="viewport-header">
+                <div class="title-with-info">
+                    <h2><i class="fa-solid fa-map-location-dot"></i> Chepauk Stadium Top-Down Interactive Map</h2>
+                    <span class="info-tag"><i class="fa-solid fa-circle-info"></i> Real Chepauk Stands, Cricket Pitch & Animated Dijkstra Reroute Particles</span>
+                </div>
+                <div class="map-controls">
+                    <button class="btn-icon" id="btn-toggle-particles" title="Toggle Crowd Particle Flow">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Particles: ON
+                    </button>
+                </div>
+            </div>
+
+            <!-- Canvas Container -->
+            <div class="canvas-container">
+                <canvas id="stadium-canvas" width="1000" height="800"></canvas>
+
+                <!-- Map Overlay Legend -->
+                <div class="map-legend">
+                    <div class="legend-item"><span class="color-dot dot-ok"></span> OK (&le;70%)</div>
+                    <div class="legend-item"><span class="color-dot dot-warning"></span> WARNING (&gt;70%)</div>
+                    <div class="legend-item"><span class="color-dot dot-overloaded"></span> OVERLOADED (&gt;90%)</div>
+                    <div class="legend-item"><span class="color-dot dot-blocked"></span> BLOCKED</div>
+                    <div class="legend-item"><span class="color-dot dot-emergency"></span> FIRE HAZARD</div>
+                    <div class="legend-item"><span class="line-sample line-reroute"></span> Active Reroute Path</div>
+                </div>
+            </div>
+
+            <!-- KPI Cards Row below Map -->
+            <div class="kpi-cards-grid">
+                <div class="kpi-card">
+                    <div class="kpi-icon icon-blue"><i class="fa-solid fa-users"></i></div>
+                    <div class="kpi-content">
+                        <span class="kpi-label">Total Occupancy</span>
+                        <h4 class="kpi-value" id="kpi-total-load">0 / 0</h4>
+                        <span class="kpi-subtext" id="kpi-total-pct">0% Capacity</span>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon icon-amber"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div class="kpi-content">
+                        <span class="kpi-label">Peak Bottleneck Zone</span>
+                        <h4 class="kpi-value" id="kpi-peak-node">None</h4>
+                        <span class="kpi-subtext" id="kpi-peak-pct">0% Load</span>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon icon-red"><i class="fa-solid fa-shield-cat"></i></div>
+                    <div class="kpi-content">
+                        <span class="kpi-label">Active Evacuation Goal</span>
+                        <h4 class="kpi-value" id="kpi-target-node">Perimeter Gates</h4>
+                        <span class="kpi-subtext" id="kpi-emergency-status">No Active Hazard</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Sidebar: Explainable AI Decision Terminal Feed -->
+        <aside class="terminal-panel glass-panel">
+            <div class="panel-header">
+                <h3><i class="fa-solid fa-terminal"></i> Multi-Agent Decision Trace (Explainable AI)</h3>
+                <span class="pulse-badge">LIVE TRACE</span>
+            </div>
+
+            <div class="terminal-body" id="terminal-body">
+                <!-- Log lines injected dynamically -->
+            </div>
+
+            <div class="action-summary-card" id="action-summary-card">
+                <h4><i class="fa-solid fa-bullhorn"></i> Coordinator Directive</h4>
+                <p id="action-message">System operating normally.</p>
+                <div class="reroute-paths-box" id="reroute-paths-box">
+                    <strong>Calculated Reroute Paths:</strong>
+                    <ul id="reroute-paths-list"></ul>
+                </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <footer class="footer">
+        <p>Chepauk StadiumTwin Multi-Agent System &copy; 2026 — Classical AI & Dijkstra Graph Pathfinding</p>
+    </footer>
+
+    <!-- JS Scripts -->
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

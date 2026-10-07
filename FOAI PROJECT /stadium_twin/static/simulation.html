@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FlowGuard — Simulation</title>
+  <meta name="description" content="Run crowd management simulation with BDI agents and A* pathfinding">
+  <link rel="stylesheet" href="/static/css/design-system.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+
+    .main {
+      padding: 0;
+      display: flex;
+      flex-direction: row;
+      height: 100vh;
+      max-width: 100%;
+    }
+
+    /* ── Tools Sidebar ── */
+    #sidebar {
+      width: 420px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      z-index: 10;
+    }
+    .sidebar-header {
+      padding: 24px;
+      border-bottom: 1px solid var(--line);
+    }
+    .sidebar-section {
+      padding: 24px;
+      border-bottom: 1px solid var(--line);
+    }
+    .sidebar-section:last-child { border-bottom: none; }
+
+    .sidebar-label {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── Analysis dropdown ── */
+    .analysis-dropdown { position: relative; }
+    .analysis-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      box-shadow: var(--shadow-sm);
+      min-width: 220px;
+      z-index: 9999;
+      display: none;
+      overflow: hidden;
+    }
+    .analysis-dropdown.open .analysis-dropdown-menu { display: block; }
+    .analysis-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 1px solid var(--line);
+    }
+    .analysis-dropdown-item:last-child { border-bottom: none; }
+    .analysis-dropdown-item:hover { background: var(--bg); color: var(--accent); }
+    .analysis-dropdown-item.selected { background: var(--bg); color: var(--accent); }
+    .analysis-dropdown-divider { height: 1px; background: var(--line); }
+
+    /* ── Analysis Drawer ── */
+    #analysisPanelDrawer {
+      border-top: 2px solid var(--accent);
+      background: var(--bg);
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 250ms ease, opacity 200ms ease;
+    }
+    #analysisPanelDrawer.open {
+      max-height: 1000px;
+      opacity: 1;
+      overflow: visible;
+    }
+    .analysis-panel-inner { padding: 18px 24px; }
+    .analysis-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    .analysis-panel-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .analysis-panel-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 4px;
+    }
+    .analysis-panel-close:hover { color: var(--coral); }
+    .analysis-sub-panel { display: none; }
+    .analysis-sub-panel.active { display: block; }
+
+    /* ── Stats grid ── */
+    #tickInfo {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-box {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 12px;
+      text-align: center;
+    }
+    .stat-box .val { font-size: 24px; font-weight: 800; }
+    .stat-box .lbl { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+    .sim-controls { display: flex; gap: 8px; }
+    .sim-controls .btn { flex: 1; }
+
+    /* ── Gates ── */
+    #gateList { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .gate-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+    }
+    .gate-item.blocked { border-color: rgba(223,105,85,0.4); background: rgba(223,105,85,0.05); }
+    .gate-item-label { font-size: 13px; font-weight: 700; color: var(--ink); }
+    .gate-item-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .scenario-btns { display: flex; gap: 8px; margin-top: 12px; }
+    .scenario-btns .btn { flex: 1; }
+
+    /* ── Agent log ── */
+    #log {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 8px;
+      height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+    }
+    .log-entry {
+      display: flex; gap: 8px; padding: 4px 8px; border-radius: 6px; border-left: 3px solid var(--line);
+    }
+    .log-entry .log-time { font-family: monospace; color: var(--muted); flex-shrink: 0; font-size: 11px; }
+    .log-entry .log-msg { color: var(--muted); word-break: break-word; }
+    .log-entry.log-warn { border-left-color: var(--gold); background: rgba(231,170,63,0.1); }
+    .log-entry.log-warn .log-msg { color: var(--gold); }
+    .log-entry.log-error { border-left-color: var(--coral); background: rgba(223,105,85,0.1); }
+    .log-entry.log-error .log-msg { color: var(--coral); }
+
+    /* Route result */
+    #routeResult {
+      background: rgba(35,132,95,0.1);
+      border: 1px solid rgba(35,132,95,0.3);
+      border-radius: 9px;
+      padding: 12px;
+      font-size: 13px;
+      color: var(--ink);
+      display: none;
+      margin-top: 12px;
+      line-height: 1.6;
+    }
+
+    /* ── Map ── */
+    .map-wrapper { flex: 1; position: relative; height: 100%; }
+    #map { position: absolute; inset: 0; z-index: 1; background: var(--bg); border-radius: 0; }
+    .map-status-bar {
+      position: absolute; bottom: 24px; right: 24px; z-index: 500;
+      background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+      padding: 8px 16px; box-shadow: var(--shadow-sm);
+      display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--muted);
+    }
+
+    .leaflet-control-layers {
+      background: var(--surface) !important;
+      border: 1px solid var(--line) !important;
+      border-radius: 9px !important;
+      box-shadow: var(--shadow-sm) !important;
+      padding: 8px 12px !important;
+      color: var(--ink) !important;
+    }
+    .leaflet-control-layers label { font-size: 13px !important; font-weight: 600 !important; }
+
+    @media (max-width: 900px) {
+      .main { flex-direction: column; }
+      #sidebar { width: 100%; height: 60vh; border-right: none; border-bottom: 1px solid var(--line); }
+      .map-wrapper { height: 40vh; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar Nav -->
+  <aside class="side">
+    <a href="/static/dashboard.html" class="logo">F<b>G</b></a>
+    <div class="nav">
+      <a href="/static/dashboard.html" title="Dashboard"><i data-lucide="layout-dashboard"></i></a>
+      <a href="/static/twin.html" title="Twin Editor"><i data-lucide="edit-3"></i></a>
+      <a href="/static/simulation.html" class="active" title="Simulations"><i data-lucide="play-circle"></i></a>
+    </div>
+    <button class="avatar" id="avatarLetter" title="Sign out" onclick="logout()">U</button>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main">
+    
+    <!-- Tools Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-header">
+        <div class="eyebrow" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span>SIMULATION</span>
+          <div class="analysis-dropdown" id="analysisDropdown">
+            <button class="mini" id="analysisDropdownBtn" onclick="toggleAnalysisDropdown(event)" style="display:inline-flex; align-items:center; gap:6px;">
+              <i data-lucide="bar-chart-2" size="12"></i> Analysis ▾
+            </button>
+            <div class="analysis-dropdown-menu" id="analysisDropdownMenu">
+              <div class="analysis-dropdown-item" id="menu-risk" onclick="showAnalysisPanel('risk')"><i data-lucide="alert-triangle" size="14"></i> Risk Analysis</div>
+              <div class="analysis-dropdown-item" id="menu-emergency" onclick="showAnalysisPanel('emergency')"><i data-lucide="ambulance" size="14"></i> Emergency Responder</div>
+              <div class="analysis-dropdown-item" id="menu-hospital" onclick="showAnalysisPanel('hospital')"><i data-lucide="building" size="14"></i> Hospital Occupancy</div>
+              <div class="analysis-dropdown-item" id="menu-route" onclick="showAnalysisPanel('route')"><i data-lucide="map" size="14"></i> Route from Click</div>
+              <div class="analysis-dropdown-divider"></div>
+              <div class="analysis-dropdown-item" onclick="closeAnalysisPanel()"><i data-lucide="x" size="14"></i> Close Analysis View</div>
+            </div>
+          </div>
+        </div>
+        <h2 id="twinLabel">Loading...</h2>
+      </div>
+
+      <!-- Capacity Box -->
+      <div class="sidebar-section">
+        <div class="sidebar-label"><i data-lucide="ruler" size="16"></i> Capacity</div>
+        <div id="capacityBox">
+          <div style="font-size:13px; color:var(--muted); margin-bottom:6px;">Compute crowd capacity from the venue polygon area.</div>
+          <div style="font-size:32px; font-weight:800; line-height:1;" id="capNumber">—</div>
+          <div id="capDetail" style="margin-top:6px;"></div>
+        </div>
+        <button class="btn primary" onclick="computeCapacity()" style="width:100%; margin-top: 16px;">Compute Capacity</button>
+      </div>
+
+      <!-- Simulation tick -->
+      <div class="sidebar-section">
+        <div class="sidebar-label"><i data-lucide="play-circle" size="16"></i> Simulation</div>
+        <div id="tickInfo">
+          <div class="stat-box">
+            <div class="val" id="statTick">0</div>
+            <div class="lbl">Tick</div>
+          </div>
+          <div class="stat-box">
+            <div class="val" id="statAgents">0</div>
+            <div class="lbl">Active Agents</div>
+          </div>
+        </div>
+        <div class="sim-controls">
+          <button class="btn" style="background:var(--good); color:#fff;" onclick="runTick()">▶ Step</button>
+          <button class="btn primary" onclick="toggleAuto()" id="btnAuto">⏩ Auto</button>
+          <button class="btn" style="background:var(--coral); color:#fff;" onclick="stopSim()">⏹ Stop</button>
+        </div>
+      </div>
+
+      <!-- Gates & Control -->
+      <div class="sidebar-section">
+        <div class="sidebar-label"><i data-lucide="door-open" size="16"></i> Gates & Routing</div>
+        <div id="gateList">
+          <span style="font-size:13px; color:var(--muted);">Generate twin + compute capacity first…</span>
+        </div>
+        
+        <div style="font-size:13px; color:var(--muted); margin:16px 0 12px; line-height:1.5;">Block a gate and watch A* reroute crowd agents to open gates.</div>
+        <select class="form-input" id="gateSelect">
+          <option value="">— Select a gate —</option>
+        </select>
+        <div class="scenario-btns">
+          <button class="btn" style="background:var(--coral); color:#fff;" onclick="blockSelectedGate()">Block</button>
+          <button class="btn" style="background:var(--good); color:#fff;" onclick="openSelectedGate()">Open</button>
+        </div>
+      </div>
+
+      <!-- Agent Log -->
+      <div class="sidebar-section" style="flex:1; display:flex; flex-direction:column; padding-bottom:24px;">
+        <div class="sidebar-label"><i data-lucide="list" size="16"></i> Agent Log</div>
+        <div id="log" style="flex:1;"></div>
+      </div>
+
+      <!-- Analysis Drawer (In-line) -->
+      <div id="analysisPanelDrawer">
+        <div class="analysis-panel-inner">
+          <div class="analysis-panel-header">
+            <span class="analysis-panel-title" id="analysisPanelTitle">Analysis</span>
+            <button class="analysis-panel-close" onclick="closeAnalysisPanel()"><i data-lucide="x" size="16"></i></button>
+          </div>
+
+          <!-- Risk -->
+          <div class="analysis-sub-panel" id="panel-risk">
+            <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Identify bottlenecks, narrow paths, and structural risks on the graph.</div>
+            <button class="btn primary" style="width:100%;" id="btnToggleRisk" onclick="toggleRiskLayer()">Show Risk Layer</button>
+            <div id="riskList" style="margin-top: 12px; font-size: 12px; color: var(--muted);"></div>
+          </div>
+
+          <!-- Emergency -->
+          <div class="analysis-sub-panel" id="panel-emergency">
+            <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Click on map to set incident location, then dispatch a responder.</div>
+            <button class="btn" style="background:var(--gold); color:#fff; width:100%;" id="btnIncidentMode" onclick="enableIncidentMode()"><i data-lucide="mouse-pointer" size="14"></i> Set Incident Location</button>
+            <div id="incidentBox" style="display:none; margin-top: 12px;">
+              <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">Incident at Node: <span id="incidentNodeLbl" style="font-weight:700;">None</span></div>
+              <button class="btn" style="background:var(--coral); color:#fff; width:100%;" onclick="triggerEmergency()"><i data-lucide="alert-triangle" size="14"></i> Dispatch Responder</button>
+            </div>
+            <div id="emergencyResult" style="display:none; margin-top: 12px; font-size: 12px; background: var(--surface); border:1px solid var(--line); padding: 10px; border-radius: 9px; line-height:1.6;"></div>
+          </div>
+
+          <!-- Hospital -->
+          <div class="analysis-sub-panel" id="panel-hospital">
+            <div style="font-size:13px; color:var(--muted); margin-bottom:12px; line-height:1.5;">
+              Adjust simulated occupancy to affect hospital ranking during emergency dispatch.
+              <span class="tag warn" style="margin-left:4px;">SIMULATED</span>
+            </div>
+            <div id="hospitalList" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;"></div>
+          </div>
+
+          <!-- Route -->
+          <div class="analysis-sub-panel" id="panel-route">
+            <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">Click anywhere on the map to find the best A* route to an open gate.</div>
+            <button class="btn" style="background:var(--gold); color:#fff; width:100%;" onclick="enableRouteMode()"><i data-lucide="mouse-pointer" size="14"></i> Enable Route Mode</button>
+            <div id="routeResult"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Map -->
+    <div class="map-wrapper">
+      <div id="map"></div>
+      <div class="map-status-bar" id="mapStatusBar">
+        <span class="pulse-dot" style="width:8px; height:8px;"></span>
+        <span id="mapStatusText">Idle — run a tick to start</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  lucide.createIcons();
+  const k='flowguard-theme';
+  if(localStorage.getItem(k)==='dark') document.body.classList.add('dark');
+
+  // ── State ──
+  const urlParams = new URLSearchParams(window.location.search);
+  const twinId = urlParams.get("id");
+  let simState = null;
+  let autoInterval = null;
+  let routeMode = false;
+  let routeLine = null;
+  let agentMarkers = [];
+  let gateMarkers = {};
+  let drawnItems = [];
+  let riskMarkers = [];
+  let riskData = null;
+  let riskLayerActive = false;
+  let incidentMode = false;
+  let incidentNode = null;
+  let incidentMarker = null;
+  let emergencyRouteLine = null;
+  let hospitalMarker = null;
+
+  let currentAnalysisPanel = null;
+  let hospitalLoaded = false;
+
+  if (!twinId) {
+    alert("No twin ID! Please open this from the dashboard.");
+    window.location.href = "/static/dashboard.html";
+  }
+
+  // ── Map init ──
+  const map = L.map("map").setView([13.0628, 80.2793], 16);
+  const streetLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OSM" });
+  const satLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 });
+  streetLayer.addTo(map);
+  L.control.layers({ Streets: streetLayer, Satellite: satLayer }).addTo(map);
+
+  map.on("click", function(e) {
+    if (routeMode) { computeRouteTo(e.latlng.lat, e.latlng.lng); }
+    if (incidentMode) { handleIncidentClick(e.latlng.lat, e.latlng.lng); }
+  });
+
+  // ── Analysis Dropdown ──
+  function toggleAnalysisDropdown(e) {
+    e.stopPropagation();
+    document.getElementById("analysisDropdown").classList.toggle("open");
+  }
+  document.addEventListener("click", function(e) {
+    const dd = document.getElementById("analysisDropdown");
+    if (dd && !dd.contains(e.target)) dd.classList.remove("open");
+  });
+
+  const PANEL_TITLES = {
+    risk:      "<i data-lucide='alert-triangle' size='14'></i> Risk Analysis",
+    emergency: "<i data-lucide='ambulance' size='14'></i> Emergency Responder",
+    hospital:  "<i data-lucide='building' size='14'></i> Hospital Occupancy",
+    route:     "<i data-lucide='map' size='14'></i> Route from Click"
+  };
+
+  function showAnalysisPanel(panel) {
+    document.getElementById("analysisDropdown").classList.remove("open");
+    if (currentAnalysisPanel === panel) { closeAnalysisPanel(); return; }
+    currentAnalysisPanel = panel;
+    document.getElementById("analysisPanelTitle").innerHTML = PANEL_TITLES[panel] || "Analysis";
+    
+    document.querySelectorAll(".analysis-sub-panel").forEach(el => el.classList.remove("active"));
+    document.getElementById("panel-" + panel).classList.add("active");
+
+    document.querySelectorAll(".analysis-dropdown-item").forEach(el => el.classList.remove("selected"));
+    const menuItem = document.getElementById("menu-" + panel);
+    if (menuItem) menuItem.classList.add("selected");
+
+    const drawer = document.getElementById("analysisPanelDrawer");
+    drawer.classList.add("open");
+    setTimeout(() => drawer.scrollIntoView({ behavior: "smooth", block: "end" }), 50);
+
+    if (panel === "hospital" && !hospitalLoaded) loadHospitals();
+    lucide.createIcons();
+  }
+
+  function closeAnalysisPanel() {
+    currentAnalysisPanel = null;
+    document.getElementById("analysisPanelDrawer").classList.remove("open");
+    document.querySelectorAll(".analysis-dropdown-item").forEach(el => el.classList.remove("selected"));
+    document.getElementById("analysisDropdown").classList.remove("open");
+  }
+
+  // ── Load twin ──
+  async function loadTwin() {
+    const res = await fetch("/api/twin/" + twinId, { credentials: "same-origin" });
+    if (!res.ok) { log("Failed to load twin", "error"); return; }
+    const twin = await res.json();
+    document.getElementById("twinLabel").textContent = twin.name;
+    document.title = "Sim — " + twin.name;
+    map.setView([twin.lat, twin.lon], 16);
+    renderTwinOverlay(twin);
+
+    const clientGates = extractGatesFromGraph(twin.graph_json);
+    if (clientGates.length > 0) {
+      renderGates(clientGates);
+      log("Loaded " + clientGates.length + " gate(s) from twin graph.");
+    } else {
+      log("No gates found. Add manual gates in Twin Editor first.", "warn");
+    }
+    await refreshState();
+  }
+
+  function extractGatesFromGraph(graphJson) {
+    if (!graphJson || !graphJson.nodes) return [];
+    return graphJson.nodes
+      .filter(n => {
+        const nid = String(n.id || "");
+        const ntype = n.type || "";
+        const label = n.label || n.name || "";
+        return (ntype === "gate" || ntype === "entrance" || nid.startsWith("manual_gate") || label.length > 0) && n.lat && n.lon;
+      })
+      .map(n => ({ id: String(n.id), lat: n.lat, lon: n.lon, label: n.label || n.name || String(n.id), status: "open", crowd: 0 }));
+  }
+
+  function renderTwinOverlay(twin) {
+    drawnItems.forEach(l => map.removeLayer(l));
+    drawnItems = [];
+    const mainColor = document.body.classList.contains('dark') ? "#9a87ff" : "#5b45d6";
+    if (twin.polygon_json && twin.polygon_json.length > 0) {
+      const poly = L.polygon(twin.polygon_json, { color: mainColor, fillColor: mainColor, fillOpacity: 0.06, weight: 2 }).addTo(map);
+      drawnItems.push(poly);
+    }
+    if (twin.graph_json && twin.graph_json.links) {
+      const nm = {};
+      twin.graph_json.nodes.forEach(n => nm[n.id] = n);
+      twin.graph_json.links.forEach(lnk => {
+        const s = nm[lnk.source], t = nm[lnk.target];
+        if (s && t && s.lat && t.lat) {
+          const line = L.polyline([[s.lat, s.lon], [t.lat, t.lon]], { color: mainColor, weight: 3, opacity: 0.6 }).addTo(map);
+          drawnItems.push(line);
+        }
+      });
+    }
+  }
+
+  async function refreshState() {
+    const res = await fetch("/api/sim/" + twinId + "/state", { credentials: "same-origin" });
+    if (!res.ok) return;
+    simState = await res.json();
+    if (simState.gates && simState.gates.length > 0) { renderGates(simState.gates); }
+    updateStats(simState.tick, 0);
+    if (simState.capacity) { renderCapacity(simState.capacity); }
+  }
+
+  // ── Capacity ──
+  async function computeCapacity() {
+    log("Computing capacity from polygon…");
+    const res = await fetch("/api/sim/" + twinId + "/capacity", { method: "POST", credentials: "same-origin" });
+    if (!res.ok) {
+      const err = await res.json();
+      log("Capacity error: " + (err.detail || "unknown"), "error");
+      return;
+    }
+    const data = await res.json();
+    renderCapacity(data);
+    log("Capacity: " + data.estimated_capacity + " people (area=" + data.gross_area_m2 + " m²)");
+    await refreshState();
+  }
+
+  function renderCapacity(data) {
+    document.getElementById("capNumber").textContent = data.estimated_capacity.toLocaleString();
+    document.getElementById("capDetail").innerHTML =
+      `<span style="color:var(--muted);font-size:12px;">Area: ${data.gross_area_m2} m² × ${data.usable_fraction} usable × ${data.density_per_m2}/m²</span>`;
+  }
+
+  // ── Gates ──
+  function renderGates(gates) {
+    const container = document.getElementById("gateList");
+    const sel = document.getElementById("gateSelect");
+    const currentSelection = sel.value;
+
+    container.innerHTML = "";
+    sel.innerHTML = '<option value="">— Select a gate —</option>';
+
+    if (!gates || gates.length === 0) {
+      container.innerHTML = '<span style="font-size:13px; color:var(--muted);">No gates found.</span>';
+      return;
+    }
+
+    gates.forEach(g => {
+      const blocked = g.status === "blocked";
+      const div = document.createElement("div");
+      div.className = "gate-item" + (blocked ? " blocked" : "");
+      div.innerHTML = `
+        <div>
+          <div class="gate-item-label">${g.label || g.id}</div>
+          <div class="gate-item-sub">${g.crowd || 0} arrived</div>
+        </div>
+        <span class="tag ${blocked ? 'warn' : ''}">${g.status}</span>`;
+      container.appendChild(div);
+
+      const opt = document.createElement("option");
+      opt.value = g.id;
+      opt.textContent = (g.label || g.id) + (blocked ? " [BLOCKED]" : "");
+      sel.appendChild(opt);
+
+      if (gateMarkers[g.id]) map.removeLayer(gateMarkers[g.id]);
+      if (g.lat && g.lon) {
+        const color = blocked ? "var(--coral)" : "var(--gold)";
+        const fill = blocked ? "#df6955" : "#e7aa3f";
+        const m = L.circleMarker([g.lat, g.lon], {
+          radius: 10, color: color, fillColor: fill, fillOpacity: 0.85, weight: 2
+        }).addTo(map).bindPopup(
+          `<b>${g.label || g.id}</b><br>Status: <b>${g.status}</b><br>Crowd arrived: ${g.crowd || 0}`
+        );
+        gateMarkers[g.id] = m;
+      }
+    });
+    if (currentSelection) sel.value = currentSelection;
+  }
+
+  // ── Block / Open ──
+  async function blockSelectedGate() {
+    const gateId = document.getElementById("gateSelect").value;
+    if (!gateId) { log("Select a gate from the dropdown first!", "warn"); return; }
+    const res = await fetch("/api/sim/" + twinId + "/block_gate", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gate_id: gateId, action: "blocked" })
+    });
+    const data = await res.json();
+    if (!res.ok) { log("Block error: " + (data.detail || JSON.stringify(data)), "error"); return; }
+    log("Gate " + data.gate_id + " BLOCKED — A* will reroute agents!", "warn");
+    setMapStatus("Gate blocked — rerouting active");
+    if (data.all_gates) renderGates(data.all_gates);
+    else await refreshState();
+  }
+
+  async function openSelectedGate() {
+    const gateId = document.getElementById("gateSelect").value;
+    if (!gateId) { log("Select a gate from the dropdown first!", "warn"); return; }
+    const res = await fetch("/api/sim/" + twinId + "/block_gate", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gate_id: gateId, action: "open" })
+    });
+    const data = await res.json();
+    if (!res.ok) { log("Open error: " + (data.detail || JSON.stringify(data)), "error"); return; }
+    log("Gate " + data.gate_id + " is now OPEN.");
+    setMapStatus("Gate opened");
+    if (data.all_gates) renderGates(data.all_gates);
+    else await refreshState();
+  }
+
+  // ── Routing ──
+  function enableRouteMode() {
+    routeMode = true;
+    log("Route mode ON — click anywhere on map to route to nearest open gate");
+    map.getContainer().style.cursor = "crosshair";
+    setMapStatus("Route mode — click on map");
+  }
+
+  async function computeRouteTo(lat, lon) {
+    routeMode = false;
+    map.getContainer().style.cursor = "";
+    log("Computing A* route from (" + lat.toFixed(4) + ", " + lon.toFixed(4) + ")…");
+    const res = await fetch("/api/sim/" + twinId + "/route", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lat, lon })
+    });
+    const data = await res.json();
+    if (data.error) { log("Route error: " + data.error, "error"); return; }
+
+    if (routeLine) map.removeLayer(routeLine);
+    const path = data.route && data.route.path ? data.route.path : [];
+    if (path.length > 1) {
+      routeLine = L.polyline(path, { color: "#e7aa3f", weight: 4, opacity: 0.9, dashArray: "8,4" }).addTo(map);
+    }
+
+    const box = document.getElementById("routeResult");
+    box.style.display = "block";
+    box.innerHTML = `<b>Gate:</b> ${data.selected_gate}<br>
+      <b>Distance:</b> ${data.route && data.route.distance_m ? data.route.distance_m + ' m' : 'N/A'}<br>
+      <b>Load:</b> ${data.crowd_load_pct}%<br>
+      <b>Algorithm:</b> A* + Haversine<br>
+      <small style="color:var(--muted); display:block; margin-top:4px;">${data.reasoning}</small>`;
+
+    log("Route → " + data.selected_gate + (data.route && data.route.distance_m ? ", " + data.route.distance_m + "m" : ""));
+    setMapStatus("Route drawn → " + data.selected_gate);
+  }
+
+  // ── Tick ──
+  async function runTick() {
+    const res = await fetch("/api/sim/" + twinId + "/tick", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ spawn_count: 5, zone_lat: null, zone_lon: null })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      log("Tick error: " + (err.detail || err.error || "unknown"), "error");
+      return;
+    }
+    const data = await res.json();
+    if (data.error) { log(data.error, "error"); return; }
+    updateStats(data.tick, data.active_agents);
+    renderGates(data.gates);
+    renderAgents(data.agents || []);
+    if (data.tick % 5 === 0) {
+      log("Tick " + data.tick + ": " + data.active_agents + " moving, " + data.arrived_this_tick + " arrived");
+    }
+    setMapStatus("Tick " + data.tick + " — " + data.active_agents + " agents active");
+  }
+
+  function updateStats(tick, agents) {
+    document.getElementById("statTick").textContent = tick;
+    document.getElementById("statAgents").textContent = agents;
+  }
+
+  function renderAgents(agents) {
+    agentMarkers.forEach(m => map.removeLayer(m));
+    agentMarkers = [];
+    agents.forEach(a => {
+      if (a.lat && a.lon) {
+        const m = L.circleMarker([a.lat, a.lon], {
+          radius: 5, color: "var(--good)", fillColor: "var(--good)", fillOpacity: 0.75, weight: 0
+        }).addTo(map);
+        agentMarkers.push(m);
+      }
+    });
+  }
+
+  function toggleAuto() {
+    if (autoInterval) {
+      clearInterval(autoInterval); autoInterval = null;
+      document.getElementById("btnAuto").textContent = "⏩ Auto";
+      setMapStatus("Auto paused");
+    } else {
+      document.getElementById("btnAuto").textContent = "⏸ Pause";
+      autoInterval = setInterval(runTick, 800);
+      setMapStatus("Auto running…");
+    }
+  }
+
+  function stopSim() {
+    if (autoInterval) { clearInterval(autoInterval); autoInterval = null; }
+    document.getElementById("btnAuto").textContent = "⏩ Auto";
+    agentMarkers.forEach(m => map.removeLayer(m));
+    agentMarkers = [];
+    log("Simulation stopped.");
+    setMapStatus("Simulation stopped");
+  }
+
+  function setMapStatus(msg) {
+    document.getElementById("mapStatusText").textContent = msg;
+  }
+
+  // ── Log ──
+  function log(msg, level = "info") {
+    const el = document.getElementById("log");
+    const cls = level === "error" ? "log-error" : level === "warn" ? "log-warn" : "";
+    const now = new Date().toLocaleTimeString();
+    const entry = document.createElement("div");
+    entry.className = "log-entry " + cls;
+    entry.innerHTML = `<span class="log-time">${now}</span><span class="log-msg">${msg}</span>`;
+    el.insertBefore(entry, el.firstChild);
+    const entries = el.querySelectorAll(".log-entry");
+    if (entries.length > 40) entries[entries.length - 1].remove();
+  }
+
+  // ── Risk Analysis ──
+  async function loadRiskPoints() {
+    if (riskData) return;
+    log("Analyzing structural risk points...");
+    try {
+      const res = await fetch("/api/twin/" + twinId + "/risk-points", { credentials: "same-origin" });
+      if (!res.ok) throw new Error("Failed to fetch risk points");
+      riskData = await res.json();
+      log(`Found ${riskData.length} risk points.`);
+    } catch (e) { log("Error analyzing risks: " + e.message, "error"); }
+  }
+
+  async function toggleRiskLayer() {
+    const btn = document.getElementById("btnToggleRisk");
+    const listEl = document.getElementById("riskList");
+    if (riskLayerActive) {
+      riskMarkers.forEach(m => map.removeLayer(m));
+      riskMarkers = [];
+      riskLayerActive = false;
+      btn.textContent = "Show Risk Layer";
+      btn.classList.add("primary");
+      btn.style.background = "";
+      btn.style.color = "";
+      listEl.innerHTML = "";
+    } else {
+      if (!riskData) await loadRiskPoints();
+      if (!riskData || riskData.length === 0) { listEl.innerHTML = "No significant risk points found."; return; }
+      riskData.sort((a,b) => b.score - a.score);
+      const topRisks = riskData.slice(0, 3);
+      listEl.innerHTML = "<b style='color:var(--ink)'>Top Risks:</b><br>" + topRisks.map(r => `• Score ${r.score}: ${r.reason}`).join("<br>");
+      riskData.forEach(r => {
+        if (!r.lat || !r.lon) return;
+        let color = "#e7aa3f";
+        if (r.score >= 70) color = "#df6955";
+        const m = L.circleMarker([r.lat, r.lon], {
+          radius: 8 + (r.score / 20), color: color, fillColor: color, fillOpacity: 0.6, weight: 2
+        }).addTo(map).bindPopup(`<b>Risk Score: ${r.score}</b><br><small>${r.reason}</small>`);
+        riskMarkers.push(m);
+      });
+      riskLayerActive = true;
+      btn.textContent = "Hide Risk Layer";
+      btn.classList.remove("primary");
+      btn.style.background = "var(--surface)";
+      btn.style.color = "var(--ink)";
+      btn.style.border = "1px solid var(--line)";
+      setMapStatus("Risk layer active");
+    }
+  }
+
+  // ── Emergency Response ──
+  function enableIncidentMode() {
+    incidentMode = true;
+    routeMode = false;
+    log("Incident Mode ON — click anywhere on map to select incident location", "warn");
+    map.getContainer().style.cursor = "crosshair";
+    setMapStatus("Incident mode — click on map");
+  }
+
+  function handleIncidentClick(lat, lon) {
+    incidentMode = false;
+    map.getContainer().style.cursor = "";
+    let nearest = null;
+    let minDist = Infinity;
+    const nodes = simState && simState.gates ? simState.gates : [];
+    if (nodes.length === 0) { log("No nodes available to place incident.", "error"); return; }
+    nodes.forEach(g => {
+      const d = Math.hypot(g.lat - lat, g.lon - lon);
+      if (d < minDist) { minDist = d; nearest = g; }
+    });
+    incidentNode = nearest.id;
+    document.getElementById("incidentNodeLbl").textContent = nearest.label || nearest.id;
+    document.getElementById("incidentBox").style.display = "block";
+    if (incidentMarker) map.removeLayer(incidentMarker);
+    incidentMarker = L.circleMarker([nearest.lat, nearest.lon], {
+      radius: 12, color: "var(--coral)", fillColor: "var(--coral)", fillOpacity: 0.9, weight: 3
+    }).addTo(map).bindPopup("<b>Incident Location</b>").openPopup();
+    log(`Incident location set to ${nearest.label || nearest.id}.`);
+    setMapStatus("Incident placed. Dispatch responder.");
+  }
+
+  async function triggerEmergency() {
+    if (!incidentNode) return;
+    log(`Dispatching emergency responder to ${incidentNode}...`, "warn");
+    setMapStatus("Dispatching responder...");
+    try {
+      const res = await fetch("/api/sim/" + twinId + "/emergency-response", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ incident_node: incidentNode, severity: "high" })
+      });
+      const data = await res.json();
+      if (!res.ok) { log("Emergency routing failed: " + (data.detail || data.error), "error"); return; }
+      if (emergencyRouteLine) map.removeLayer(emergencyRouteLine);
+      if (hospitalMarker) map.removeLayer(hospitalMarker);
+      const fullPath = [...data.vehicle_route, ...data.foot_route];
+      if (fullPath.length > 0) {
+        emergencyRouteLine = L.polyline(fullPath, { color: "var(--accent)", weight: 5, opacity: 0.9, dashArray: "10,5" }).addTo(map);
+      }
+      const hosp = data.best_hospital;
+      
+      hospitalMarker = L.marker([hosp.lat, hosp.lon], {
+        icon: L.divIcon({ className: 'custom-div-icon', html: "<div style='color:var(--coral); background:#fff; padding:2px; border-radius:50%; box-shadow:0 0 5px rgba(0,0,0,0.3);'><i data-lucide='building' size='20'></i></div>", iconSize: [24, 24], iconAnchor: [12, 12] })
+      }).addTo(map).bindPopup(`<b>${hosp.name}</b><br>ETA: ${hosp.travel_time_min} mins`).openPopup();
+      lucide.createIcons();
+
+      if (fullPath.length > 0) map.fitBounds(emergencyRouteLine.getBounds(), { padding: [50, 50] });
+      const box = document.getElementById("emergencyResult");
+      box.style.display = "block";
+      box.innerHTML = `
+        <b style="color:var(--ink)">Responder:</b> ${data.responder_type}<br>
+        <b style="color:var(--ink)">Hospital:</b> ${hosp.name}<br>
+        <b style="color:var(--ink)">ETA:</b> ${data.eta_min} mins<br>
+        <b style="color:var(--ink)">Load:</b> ${hosp.occupancy_rate}% full<br>
+        <small style="color:var(--muted); display:block; margin-top:6px;">* Hospital occupancy is SIMULATED.</small>`;
+      log(`[Emergency] ${data.responder_type} dispatched from ${hosp.name}. ETA ${data.eta_min}m.`);
+      setMapStatus("Responder dispatched.");
+      if (hospitalLoaded) loadHospitals();
+    } catch(e) { log("Error triggering emergency: " + e.message, "error"); }
+  }
+
+  // ── Hospital Occupancy ──
+  async function loadHospitals() {
+    hospitalLoaded = true;
+    const listEl = document.getElementById("hospitalList");
+    try {
+      const r = await fetch("/api/sim/hospitals", { credentials: "same-origin" });
+      if (!r.ok) { listEl.innerHTML = '<span style="font-size:12px;color:var(--muted);">No hospitals loaded yet.</span>'; return; }
+      const hospitals = await r.json();
+      if (!hospitals.length) { listEl.innerHTML = '<span style="font-size:12px;color:var(--muted);">No hospitals in DB yet.</span>'; return; }
+      listEl.innerHTML = "";
+      hospitals.forEach(h => {
+        const pct = h.occupancy_pct;
+        const barColor = pct >= 80 ? "var(--coral)" : pct >= 50 ? "var(--gold)" : "var(--good)";
+        const card = document.createElement("div");
+        card.style.cssText = "background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:12px;";
+        card.innerHTML = `
+          <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:8px;">${h.name}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <div style="flex:1;height:8px;background:var(--bg);border:1px solid var(--line);border-radius:4px;overflow:hidden;">
+              <div style="width:${pct}%;height:100%;background:${barColor};transition:width 0.3s;"></div>
+            </div>
+            <span id="hosp-pct-${h.id}" style="font-size:13px;color:${barColor};font-weight:700;width:35px;text-align:right;">${pct}%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:11px;color:var(--muted);width:45px;">Beds: ${h.total_beds}</span>
+            <input type="range" min="0" max="${h.total_beds}" value="${h.current_occupancy}"
+                   style="flex:1;accent-color:var(--accent);"
+                   id="hosp-slider-${h.id}"
+                   oninput="updateHospitalDisplay(${h.id}, ${h.total_beds}, this.value)"
+                   onchange="setOccupancy(${h.id}, ${h.total_beds}, this.value)">
+          </div>`;
+        listEl.appendChild(card);
+      });
+    } catch(e) { listEl.innerHTML = `<span style="font-size:12px;color:var(--muted);">Could not load hospitals.</span>`; }
+  }
+
+  function updateHospitalDisplay(id, totalBeds, occ) {
+    const pct = Math.round(occ / totalBeds * 100);
+    const el = document.getElementById("hosp-pct-" + id);
+    if (el) el.textContent = pct + "%";
+  }
+
+  async function setOccupancy(id, totalBeds, occ) {
+    try {
+      await fetch(`/api/sim/hospitals/${id}/occupancy`, {
+        method: "PATCH", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_occupancy: parseInt(occ), total_beds: totalBeds })
+      });
+      const pct = Math.round(occ / totalBeds * 100);
+      log(`[Hospital] Updated occupancy to ${pct}%.`);
+    } catch(e) { log("Hospital update failed: " + e.message, "error"); }
+  }
+
+  // ── Auth + load ──
+  fetch("/api/me", { credentials: "same-origin" }).then(r => {
+    if (!r.ok) { window.location.href = "/static/login.html"; return; }
+    r.json().then(me => {
+      document.getElementById('avatarLetter').textContent = me.username[0].toUpperCase();
+      loadTwin();
+    });
+  });
+
+  async function logout() {
+    try { await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch(e) {}
+    document.cookie = 'access_token=; Max-Age=0; path=/;';
+    window.location.href = '/static/login.html';
+  }
+</script>
+</body>
+</html>

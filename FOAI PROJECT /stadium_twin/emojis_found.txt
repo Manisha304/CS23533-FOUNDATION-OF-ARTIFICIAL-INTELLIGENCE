@@ -1,0 +1,2 @@
+.\find_emojis.py:16: if p.search(line) or any(e in line for e in ['✅', '⚠️', '🏟', '🌊', '🚪', '🚨', '🔴', '🟢', '🟡', '🗺', '👥', '🚗', '🍔', '🎯', '🤖', '⚡', '❌', '🏥', '🚑', '📊', '📐', '🎬', '📋', '🔵', '🔗', '✏️', '🗑', '🏗', '➕']):
+.\static\js\dashboard.js:227: li.textContent = `${origin} ➔ ${path.join(" ➔ ")}`;

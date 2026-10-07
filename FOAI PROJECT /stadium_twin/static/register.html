@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowGuard — Register</title>
+  <meta name="description" content="Create your FlowGuard account">
+  <link rel="stylesheet" href="/static/css/design-system.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--bg);
+      padding: 24px;
+    }
+
+    .auth-shell {
+      display: flex;
+      width: 100%;
+      max-width: 900px;
+      min-height: 520px;
+      border-radius: 25px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(22, 33, 28, 0.08);
+      background: var(--surface);
+    }
+
+    .auth-brand {
+      flex: 1.1;
+      background: var(--nav);
+      padding: 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 48px;
+      text-decoration: none;
+    }
+    .brand-logo-icon {
+      width: 48px; height: 48px;
+      background: #263842;
+      border-radius: 13px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+    }
+    .brand-logo-text {
+      font-size: 24px;
+      font-weight: 900;
+      color: #fff;
+    }
+    .brand-logo-text span { color: var(--gold); }
+
+    .brand-headline {
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      margin-bottom: 16px;
+    }
+    .brand-sub {
+      font-size: 15px;
+      color: #bdc6ca;
+      line-height: 1.6;
+      max-width: 320px;
+    }
+
+    .brand-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 40px;
+    }
+    .brand-step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #d9dfe2;
+    }
+    .step-num {
+      width: 32px; height: 32px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent);
+      font-weight: 800;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .auth-form-panel {
+      flex: 0.9;
+      background: var(--surface);
+      padding: 48px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .auth-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--ink);
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+    .auth-subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 32px;
+    }
+
+    .auth-form { display: flex; flex-direction: column; gap: 16px; }
+
+    .form-group { margin-bottom: 4px; }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.1px;
+      color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 11px;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 15px;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--surface);
+    }
+
+    .btn-submit {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 11px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: opacity 0.2s;
+    }
+    .btn-submit:hover { opacity: 0.9; }
+
+    .auth-link-row {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 24px;
+    }
+    .auth-link-row a {
+      color: var(--ink);
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .auth-link-row a:hover { color: var(--accent); }
+
+    .error-msg {
+      background: rgba(223,105,85,0.1);
+      border: 1px solid rgba(223,105,85,0.2);
+      color: var(--coral);
+      border-radius: 9px;
+      padding: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .success-msg {
+      background: rgba(35,132,95,0.1);
+      border: 1px solid rgba(35,132,95,0.2);
+      color: var(--good);
+      border-radius: 9px;
+      padding: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    @media (max-width: 800px) {
+      .auth-brand { display: none; }
+      .auth-shell { max-width: 420px; border-radius: 19px; }
+      .auth-form-panel { padding: 40px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="auth-shell">
+  <!-- Brand panel -->
+  <div class="auth-brand">
+    <div class="brand-logo">
+      <div class="brand-logo-icon"><i data-lucide="waves"></i></div>
+      <div class="brand-logo-text">Flow<span>Guard</span></div>
+    </div>
+    <div class="brand-headline">Get Started in<br>60 Seconds</div>
+    <div class="brand-sub">
+      Create an account and build your first crowd management digital twin
+      from real OpenStreetMap data.
+    </div>
+    <div class="brand-steps">
+      <div class="brand-step">
+        <div class="step-num">1</div>
+        <span>Register and log in</span>
+      </div>
+      <div class="brand-step">
+        <div class="step-num">2</div>
+        <span>Search any stadium or venue</span>
+      </div>
+      <div class="brand-step">
+        <div class="step-num">3</div>
+        <span>Generate OSM twin + add gates</span>
+      </div>
+      <div class="brand-step">
+        <div class="step-num">4</div>
+        <span>Run simulation — watch A* live</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form panel -->
+  <div class="auth-form-panel">
+    <div class="auth-title">Create account</div>
+    <div class="auth-subtitle">Join FlowGuard</div>
+
+    <div id="errorMsg" class="error-msg"></div>
+    <div id="successMsg" class="success-msg">Registration successful! Redirecting to login…</div>
+
+    <form id="registerForm" class="auth-form">
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input class="form-input" type="text" id="username" name="username" placeholder="Choose a username" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-input" type="password" id="password" name="password" placeholder="Create a password" autocomplete="new-password" required>
+      </div>
+      <button type="submit" id="registerBtn" class="btn-submit">Create Account</button>
+    </form>
+
+    <div class="auth-link-row">
+      Already have an account? <a href="/static/login.html">Sign in</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  lucide.createIcons();
+
+  document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('registerBtn');
+    const errEl = document.getElementById('errorMsg');
+    const sucEl = document.getElementById('successMsg');
+    btn.textContent = 'Creating account…';
+    btn.disabled = true;
+    errEl.style.display = 'none';
+
+    const formData = new URLSearchParams(new FormData(e.target));
+    const response = await fetch('/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData
+    });
+
+    if (response.ok) {
+      sucEl.style.display = 'block';
+      setTimeout(() => { window.location.href = '/static/login.html'; }, 1400);
+    } else {
+      const data = await response.json();
+      errEl.textContent = data.detail || 'Registration failed. Please try again.';
+      errEl.style.display = 'block';
+      btn.textContent = 'Create Account';
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FlowGuard — Twin Editor</title>
+  <meta name="description" content="Create and edit a digital twin from OpenStreetMap data">
+  <link rel="stylesheet" href="/static/css/design-system.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+    
+    .main {
+      padding: 0; 
+      display: flex;
+      flex-direction: row;
+      height: 100vh;
+      max-width: 100%;
+    }
+
+    /* ── Tools Sidebar ── */
+    #sidebar {
+      width: 380px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      z-index: 10;
+    }
+    .sidebar-header {
+      padding: 24px;
+      border-bottom: 1px solid var(--line);
+    }
+    .sidebar-section {
+      padding: 24px;
+      border-bottom: 1px solid var(--line);
+    }
+    .sidebar-section:last-child { border-bottom: none; }
+
+    .sidebar-label {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── Search results ── */
+    #results {
+      list-style: none;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 8px;
+      display: none;
+      box-shadow: var(--shadow-sm);
+    }
+    #results.has-results { display: block; }
+    #results li {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--ink);
+    }
+    #results li:last-child { border-bottom: none; }
+    #results li:hover { background: var(--bg); color: var(--accent); }
+
+    /* ── Status message ── */
+    #status {
+      border-radius: 9px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      display: none;
+      margin-top: 12px;
+    }
+    #status.ok    { background: rgba(35,132,95,0.1); color: var(--good); border: 1px solid rgba(35,132,95,0.2); }
+    #status.error { background: rgba(223,105,85,0.1); color: var(--coral); border: 1px solid rgba(223,105,85,0.2); }
+    #status.info  { background: rgba(91,69,214,0.1); color: var(--accent); border: 1px solid rgba(91,69,214,0.2); }
+
+    /* ── Gate mode box ── */
+    #manualGateSection {
+      background: var(--bg);
+      border: 1px dashed var(--accent);
+      border-radius: 11px;
+      padding: 18px;
+      display: none;
+    }
+    #manualGateSection h4 {
+      font-size: 14px;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    #manualGateSection p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    #btnSaveGate { display: none; }
+
+    /* Search row */
+    .search-row {
+      display: flex;
+      gap: 8px;
+    }
+    .search-row .form-input { flex: 1; }
+    .search-row .btn { flex-shrink: 0; }
+
+    /* Tip text */
+    .tip {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── Map ── */
+    .map-wrapper {
+      flex: 1;
+      position: relative;
+      height: 100%;
+    }
+    #map {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background: var(--bg);
+      border-radius: 0; /* Override generic */
+    }
+    .map-hint {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      box-shadow: var(--shadow-sm);
+      z-index: 500;
+      pointer-events: none;
+    }
+
+    /* ── Leaflet override ── */
+    .leaflet-control-layers {
+      background: var(--surface) !important;
+      border: 1px solid var(--line) !important;
+      border-radius: 9px !important;
+      box-shadow: var(--shadow-sm) !important;
+      padding: 8px 12px !important;
+      color: var(--ink) !important;
+    }
+    .leaflet-control-layers label {
+      font-size: 13px !important;
+      font-weight: 600 !important;
+    }
+
+    @media (max-width: 900px) {
+      .main { flex-direction: column; }
+      #sidebar { width: 100%; height: 50vh; border-right: none; border-bottom: 1px solid var(--line); }
+      .map-wrapper { height: 50vh; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar Nav -->
+  <aside class="side">
+    <a href="/static/dashboard.html" class="logo">F<b>G</b></a>
+    <div class="nav">
+      <a href="/static/dashboard.html" title="Dashboard"><i data-lucide="layout-dashboard"></i></a>
+      <a href="/static/twin.html" class="active" title="Twin Editor"><i data-lucide="edit-3"></i></a>
+      <a href="/static/simulation.html" title="Simulations"><i data-lucide="play-circle"></i></a>
+    </div>
+    <button class="avatar" id="avatarLetter" title="Sign out" onclick="logout()">U</button>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main">
+    
+    <!-- Tools Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-header">
+        <div class="eyebrow">TWIN EDITOR</div>
+        <h2>Configure Location</h2>
+      </div>
+
+      <!-- Search section -->
+      <div class="sidebar-section">
+        <div class="sidebar-label"><i data-lucide="search" size="16"></i> Search Venue</div>
+        <div class="search-row">
+          <input class="form-input" type="text" id="searchInput" placeholder="e.g. Chepauk Stadium, Chennai" onkeypress="if(event.key === 'Enter') searchPlace()">
+          <button class="btn btn-primary" onclick="searchPlace()">Search</button>
+        </div>
+        <ul id="results"></ul>
+      </div>
+
+      <!-- Generate twin -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">1 · Generate Twin</div>
+        <p class="tip" style="margin-bottom: 16px;">Click on the map to place a pin, or search above. Then name your twin and generate.</p>
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">Twin Name</label>
+          <input class="form-input" type="text" id="twinName" placeholder="e.g. Chepauk Stadium">
+        </div>
+        <div id="status"></div>
+        <button onclick="generateTwin()" class="btn btn-primary" style="width:100%; margin-top: 16px;">
+          <i data-lucide="globe" size="16"></i> Generate Twin from OSM
+        </button>
+      </div>
+
+      <!-- Manual gates (revealed after twin generated) -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">2 · Manual Gates</div>
+        <div id="manualGateSection">
+          <h4>Add Gate Pin</h4>
+          <p>If OSM is missing gates, click on the map to drop a pin, name it, then save.</p>
+          <div style="margin-bottom:12px;">
+            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">Gate Name</label>
+            <input class="form-input" type="text" id="gateName" placeholder="e.g. North Gate">
+          </div>
+          <button onclick="saveManualGate()" class="btn" style="background:var(--good); color:#fff; width:100%; margin-top: 12px;" id="btnSaveGate">
+            <i data-lucide="map-pin" size="16"></i> Save Gate at Pin
+          </button>
+        </div>
+        <p class="tip" id="gateHint">Generate a twin first to enable gate placement.</p>
+      </div>
+
+    </div>
+
+    <!-- Map -->
+    <div class="map-wrapper">
+      <div id="map"></div>
+      <div class="map-hint">Click on the map to place a pin</div>
+    </div>
+  </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  lucide.createIcons();
+  
+  // Theme logic
+  const k='flowguard-theme';
+  if(localStorage.getItem(k)==='dark') document.body.classList.add('dark');
+
+  let currentTwinId = null;
+  let drawnItems = [];
+
+  document.addEventListener("DOMContentLoaded", function() {
+    try {
+      const map = L.map("map").setView([13.0628, 80.2793], 16);
+
+      const isDark = document.body.classList.contains('dark');
+      const streetLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19, attribution: "© OpenStreetMap"
+      });
+      const satelliteLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 19, attribution: "Tiles © Esri"
+      });
+      streetLayer.addTo(map);
+      L.control.layers({ "Streets": streetLayer, "Satellite": satelliteLayer }).addTo(map);
+
+      let marker = L.marker([13.0628, 80.2793], { draggable: true }).addTo(map);
+      map.on("click", function(e) { marker.setLatLng(e.latlng); });
+
+      window.map = map;
+      window.marker = marker;
+
+      // Auth check
+      fetch('/api/me').then(res => {
+        if (!res.ok) { window.location.href = '/static/login.html'; return; }
+        res.json().then(me => {
+          document.getElementById('avatarLetter').textContent = me.username[0].toUpperCase();
+        });
+      });
+
+      // Load existing twin if ?id= param
+      const urlParams = new URLSearchParams(window.location.search);
+      const twinId = urlParams.get("id");
+      if (twinId) {
+        currentTwinId = twinId;
+        document.getElementById("manualGateSection").style.display = "block";
+        document.getElementById("btnSaveGate").style.display = "flex";
+        document.getElementById("gateHint").style.display = "none";
+
+        fetch("/api/twin/" + twinId)
+          .then(res => res.json())
+          .then(twin => {
+            document.getElementById("twinName").value = twin.name;
+            document.title = "Twin Editor — " + twin.name;
+            map.setView([twin.lat, twin.lon], 16);
+            marker.setLatLng([twin.lat, twin.lon]);
+            renderTwinData(twin);
+          })
+          .catch(err => console.error("Error loading twin:", err));
+      }
+    } catch (err) {
+      console.error("Map initialization failed:", err);
+    }
+  });
+
+  function showStatus(msg, type = 'ok') {
+    const el = document.getElementById("status");
+    el.style.display = "block";
+    el.textContent = msg;
+    el.className = type;
+  }
+
+  async function searchPlace() {
+    const query = document.getElementById("searchInput").value;
+    if (!query) return;
+    showStatus("Searching…", "info");
+    try {
+      const res = await fetch("/api/twin/search?q=" + encodeURIComponent(query));
+      if (!res.ok) throw new Error("Search failed");
+      const data = await res.json();
+      const ul = document.getElementById("results");
+      ul.innerHTML = "";
+
+      if (data.length === 0) { showStatus("No results found.", "error"); return; }
+
+      data.forEach(place => {
+        const li = document.createElement("li");
+        li.textContent = place.display_name;
+        li.onclick = () => {
+          const lat = parseFloat(place.lat), lon = parseFloat(place.lon);
+          window.map.setView([lat, lon], 17);
+          window.marker.setLatLng([lat, lon]);
+          ul.innerHTML = ""; ul.classList.remove("has-results");
+          document.getElementById("twinName").value = place.name || place.display_name.split(",")[0] || "New Twin";
+          document.getElementById("status").style.display = "none";
+        };
+        ul.appendChild(li);
+      });
+      ul.classList.add("has-results");
+      showStatus(data.length + " results found.", "ok");
+      setTimeout(() => document.getElementById("status").style.display = "none", 2000);
+    } catch (err) {
+      showStatus("Search failed. Check your connection.", "error");
+    }
+  }
+
+  async function generateTwin() {
+    const name = document.getElementById("twinName").value || "Unnamed Twin";
+    const lat = window.marker.getLatLng().lat;
+    const lon = window.marker.getLatLng().lng;
+    showStatus("Fetching OSM data… this may take 10–20 seconds.", "info");
+    try {
+      const res = await fetch("/api/twin/?name=" + encodeURIComponent(name) + "&lat=" + lat + "&lon=" + lon, {
+        method: "POST", credentials: "same-origin"
+      });
+      if (res.ok) {
+        const data = await res.json();
+        currentTwinId = data.id;
+        showStatus("Twin generated and saved! You can now add manual gates.", "ok");
+        document.title = "Twin Editor — " + data.name;
+        renderTwinData(data);
+        document.getElementById("manualGateSection").style.display = "block";
+        document.getElementById("btnSaveGate").style.display = "flex";
+        document.getElementById("gateHint").style.display = "none";
+      } else {
+        const errText = await res.text();
+        showStatus("Failed to generate: " + errText, "error");
+      }
+    } catch (err) {
+      showStatus("Error generating twin.", "error");
+    }
+  }
+
+  async function saveManualGate() {
+    if (!currentTwinId) return;
+    const lat = window.marker.getLatLng().lat;
+    const lon = window.marker.getLatLng().lng;
+    const name = document.getElementById("gateName").value || "Manual Gate";
+    try {
+      const res = await fetch("/api/twin/" + currentTwinId + "/gates", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat, lon, name })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        showStatus("Gate \"" + name + "\" saved!", "ok");
+        renderTwinData(data);
+      } else { showStatus("Failed to save gate.", "error"); }
+    } catch(e) { showStatus("Error saving gate.", "error"); }
+  }
+
+  function renderTwinData(twin) {
+    drawnItems.forEach(item => window.map.removeLayer(item));
+    drawnItems = [];
+    const mainColor = document.body.classList.contains('dark') ? "#9a87ff" : "#5b45d6";
+    const gateColor = "#e7aa3f"; // gold
+    if (twin.polygon_json && twin.polygon_json.length > 0) {
+      let poly = L.polygon(twin.polygon_json, { color: mainColor, fillColor: mainColor, fillOpacity: 0.1, weight: 2 }).addTo(window.map);
+      drawnItems.push(poly);
+    }
+    if (twin.graph_json && twin.graph_json.links) {
+      const nodesMap = {};
+      twin.graph_json.nodes.forEach(n => nodesMap[n.id] = n);
+      twin.graph_json.links.forEach(link => {
+        const src = nodesMap[link.source], dst = nodesMap[link.target];
+        if (src && dst) {
+          let line = L.polyline([[src.lat, src.lon], [dst.lat, dst.lon]], { color: mainColor, weight: 3, opacity: 0.6 }).addTo(window.map);
+          drawnItems.push(line);
+        }
+      });
+      twin.graph_json.nodes.forEach(n => {
+        if (n.type === "gate" || n.type === "entrance") {
+          let mark = L.circleMarker([n.lat, n.lon], { radius: 8, color: gateColor, fillColor: gateColor, fillOpacity: 0.9, weight: 2 })
+            .addTo(window.map).bindPopup("<b>" + (n.label || "Gate") + "</b><br><small>" + n.id + "</small>");
+          drawnItems.push(mark);
+        } else {
+          let mark = L.circleMarker([n.lat, n.lon], { radius: 3, color: mainColor, stroke: false, fillOpacity: 0.6 }).addTo(window.map);
+          drawnItems.push(mark);
+        }
+      });
+    }
+  }
+
+  async function logout() {
+    try { await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch(e) {}
+    document.cookie = 'access_token=; Max-Age=0; path=/;';
+    window.location.href = '/static/login.html';
+  }
+</script>
+</body>
+</html>

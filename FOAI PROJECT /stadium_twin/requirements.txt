@@ -1,0 +1,15 @@
+﻿fastapi==0.109.2
+uvicorn==0.27.1
+sqlalchemy==2.0.25
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.9
+python-dotenv==1.0.1
+pytest==8.0.0
+requests==2.31.0
+networkx==3.2.1
+shapely==2.0.2
+pyproj==3.6.1
+pillow==10.2.0
+opencv-python-headless==4.9.0.80
+websockets==12.0
